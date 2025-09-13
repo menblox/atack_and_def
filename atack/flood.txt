@@ -1,0 +1,39 @@
+(*) перед переменной tasks — это оператор распаковки. Он берёт элементы из итерируемого объекта (в данном случае — список tasks) и передаёт их в функцию asyncio.gather() как отдельные аргументы. Например, если tasks — это список из трёх задач [task1, task2, task3], то asyncio.gather(*tasks) превратится в asyncio.gather(task1, task2, task3).
+
+await: Ключевое слово await "ставит на паузу" выполнение текущей корутины и ждёт, пока все задачи, переданные в gather, не завершатся.
+
+
+Это для get запроса
+
+import aiohttp
+import asyncio
+
+
+target = "http://192.168.0.185:8000/register/"
+REQUESTS = 100
+
+async def atack(i, session):
+    try:
+        #session.get(TARGET) — отправляет HTTP GET на сервер. async with гарантирует, что соединение корректно закроется после запроса
+        async with session.get(target) as resp:    
+            print(f"[{i}] {resp.status}")
+    #Если в этом блоке кода произойдёт какая-либо ошибка, поймай её
+    except Exception as e:
+        print(f"[{i}] Error: {e}")
+
+async def main():
+    async with aiohttp.ClientSession() as session:
+        tasks = []
+        for i in range(REQUESTS):
+            tasks.append(asyncio.create_task(atack(i, session)))
+        #asyncio.gather(*tasks) — запускает все задачи одновременно и ждёт, пока все завершатся.
+        await asyncio.gather(*tasks)
+
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+
