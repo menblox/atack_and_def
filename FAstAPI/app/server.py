@@ -12,6 +12,8 @@ from app.db.database import engine, sesion_local, Base
 from app.auth import get_password_hash, verify_password, create_acces_token
 from app.config import ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY, ALGORITHM
 
+from sqlalchemy.sql import text
+
 app = FastAPI()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -121,3 +123,15 @@ async def users(
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return db_user
+
+
+
+#УЯЗВИМЫЙ ЭНДПОИНТ
+@app.get("/vulnerable_search/")
+async def vulnerable_search(query: str, db: Session = Depends(get_db)):
+    raw_query = f"SELECT * FROM users WHERE email = '{query}'"
+    try:
+        result = db.execute(text(raw_query)).fetchall()
+        return {"results": [dict(row) for row in result]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
