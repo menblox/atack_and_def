@@ -19,9 +19,11 @@ def random_string(length=8):
             letters = string.ascii_lowercase + string.digits
             return ''.join(random.choice(letters) for _ in range(length))
 
-async def atack(i, session):
+async def atack(i, session, cancel_event):
     
     async with limit:
+        if cancel_event.is_set():
+            return
         try:     
             email = f"{random_string()}@gmail.com"
             password = random_string(10)
@@ -33,7 +35,7 @@ async def atack(i, session):
                 "email": email,
                 "password": password
             }
-
+            #1
             start_time = time.perf_counter()
             async with session.post(target, json=payload) as resp:
                 latency = time.perf_counter() - start_time
@@ -48,7 +50,12 @@ async def atack(i, session):
                     text = await resp.text()
                     async with aiofiles.open("log_post.txt", "a") as f:
                         await f.write(f"[{i}] status={resp.status}, latency={latency:.4f}s, response (not JSON): {text}\n")
-                    
+                if resp.status == 429:
+                    print(f"[{i}] Остановлено: превышен лимит запросов (429)")
+                    cancel_event.set()
+                    return
+            
+            #2
             log_pay = {"username": email, "password": password}
             start_time = time.perf_counter()
             async with session.post(target_token, data=log_pay) as resp:
@@ -65,8 +72,11 @@ async def atack(i, session):
                         login_data = await resp.text()
                         async with aiofiles.open("log_login.txt", "a") as f:
                             await f.write(f"[{i}] LOGIN status={resp.status}, response={login_data}, latency={latency:.4f}s\n\n")
-                            print(f"[{i}] LOGIN_not_json status={resp.status}, latency={latency:.4f}s, body={login_data}")                    
+                            print(f"[{i}] LOGIN_not_json status={resp.status}, latency={latency:.4f}s, body={login_data}") 
+                    
+                                       
 
+                    #3
                     # 4) Попытка извлечь токен из ответа
                     token = None
                     if isinstance(login_data, dict):
@@ -90,23 +100,29 @@ async def atack(i, session):
                                         data = await resp.text()
                                         async with aiofiles.open("log_get.txt", "a") as f:
                                             await f.write(f"[{i}] status={resp.status}, response={data}, latency={latency:.4f}s\n\n")
+                                    
+                                    if resp.status == 429:
+                                        print(f"[{i}] Остановлено: превышен лимит запросов (429)")
+                                        cancel_event.set()
+                                        return
                                             
                             except Exception as e:
                                 print(f"[GET {i}] Error: {e}")
+
+                elif resp.status == 429:
+                    print(f"[{i}] Остановлено: превышен лимит запросов (429)")
+                    cancel_event.set()
+                    return
 
         except Exception as e:
             print(f"[{i}] Error: {e}")
     
 
 async def main():
+    cancel_event = asyncio.Event()
     async with aiohttp.ClientSession() as session:
-        task = []
-
-        for i in range(REQUESTS):
-            task.append(asyncio.create_task(atack(i, session)))
-
-        if task:
-            await asyncio.gather(*task)
+        tasks = [asyncio.create_task(atack(i, session, cancel_event)) for i in range(REQUESTS)]
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
