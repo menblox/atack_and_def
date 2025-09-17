@@ -1,10 +1,15 @@
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Request
 from typing import List, Iterator
 import fastapi
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from datetime import timedelta
 from jose import JWTError, jwt
+
+#ЗАЩИТА
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from app.pydant import User as DbUser, UserCreate, PostResponse, PostCreate, Token, Name_JWT
 from app.db.models import User, Post
@@ -17,6 +22,12 @@ from sqlalchemy.sql import text
 app = FastAPI()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+#ЗАЩИТА
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -51,7 +62,8 @@ def verify_token(token: str = Depends(oauth2_scheme)):
 
 #РЕГИСТРАЦИЯ
 @app.post("/register/", response_model=DbUser, status_code=status.HTTP_201_CREATED)
-async def create_user(user: UserCreate, db: Session = Depends(get_db)) -> User:
+@limiter.limit("10/minute")
+async def create_user(user: UserCreate, db: Session = Depends(get_db), request: Request = None) -> User:
     db_user = db.query(User).filter(User.email == user.email).first()
     if db_user is not None:
         raise HTTPException(status_code=409, detail="Email already registered!")
@@ -71,9 +83,11 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)) -> User:
 
 #ВХОД
 @app.post("/token/", response_model=Token)
+@limiter.limit("10/minute")
 async def login_users(
     form_data: fastapi.security.OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)) -> dict:
+    db: Session = Depends(get_db),
+    request: Request = None) -> dict:
     db_user = db.query(User).filter(User.email == form_data.username).first()
     
     if db_user is None:
@@ -91,10 +105,12 @@ async def login_users(
 
 
 @app.post("/posts/", response_model=PostResponse)
+@limiter.limit("5/minute")
 async def create_post(
     post: PostCreate,
     current_user: Name_JWT = Depends(verify_token),
-    db: Session = Depends(get_db)) -> Post:
+    db: Session = Depends(get_db),
+    request: Request = None) -> Post:
     db_user = db.query(User).filter(User.email == current_user.email).first()
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -108,16 +124,19 @@ async def create_post(
 
 
 @app.get("/posts/", response_model=List[PostResponse])
+@limiter.limit("20/minute")
 async def posts(
     current_user: Name_JWT = Depends(verify_token),
-    db: Session=Depends(get_db)
-    ) -> List[Post]:
+    db: Session=Depends(get_db),
+    request: Request = None) -> List[Post]:
     return db.query(Post).all()
 
 @app.get("/users/me/", response_model=DbUser)
+@limiter.limit("10/minute")
 async def users(
     current_user: Name_JWT = Depends(verify_token),
-    db: Session=Depends(get_db)):
+    db: Session=Depends(get_db),
+    request: Request = None):
     
     db_user = db.query(User).filter(User.email == current_user.email).first()
     if db_user is None:
