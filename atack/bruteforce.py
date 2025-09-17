@@ -32,7 +32,7 @@ async def send_pass(session, email, password, sem):
             return False
 
 async def hack(session, email):
-    sem = asyncio.Semaphore(100)
+    sem = asyncio.Semaphore(10)
     task = []
     i = 1
 
